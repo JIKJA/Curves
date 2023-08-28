@@ -7,18 +7,13 @@
 #include <memory>
 #include <math.h>
 #include <algorithm>
+#include <numeric>
 #include <omp.h>
 #include <chrono>
 
 #include "header.h"
 
 using namespace std;
-
-// sort comparator
-bool compareR(shared_ptr<Circle> i1, shared_ptr<Circle> i2)
-{
-    return (i1->getRadius() < i2->getRadius())||false;
-}
 
 int main()
 {
@@ -46,13 +41,15 @@ int main()
     cout << "Address(original container) : Radius" << endl;
     vector<shared_ptr<Circle>> circles;
     for (auto curve : curves) {
-        shared_ptr<Circle> circle(dynamic_cast<Circle*>(curve.get()));
+        shared_ptr<Circle> circle(dynamic_cast<Circle*>(curve.get())); // downcast and check if circle
         if (circle.get()) {
             circles.push_back(circle);
             cout << curve.get() << " " << circle->getRadius() << endl;
         }
     }
-    sort(circles.begin(), circles.end(), compareR); // multimap?
+    sort(circles.begin(), circles.end(), [](const shared_ptr<Circle>& i1, const shared_ptr<Circle>& i2) {
+        return i1->getRadius() < i2->getRadius();
+    }); // multimap?
 
     cout << "\n" << endl;
     cout << "Address(new container) : Radius" << endl;
@@ -62,18 +59,15 @@ int main()
     cout << "\n" << endl;
 
     // Find sum
-    // Takes 8874 ms for 200k elements
-    double sum = 0;
     auto start = chrono::high_resolution_clock::now();
-    for (auto circle : circles) {
-        sum += circle->getRadius();
-    }
+    double sum = accumulate(circles.begin(), circles.end(), 0.0, [](double a, const shared_ptr<Circle>& b) {
+        return a + b->getRadius();
+    });
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
     cout << "Radius sum: " << sum << ", Time: " << duration.count() << endl;
 
     // Find sum with OpenMP
-    // Takes 2575 ms for 200k elements
     sum = 0;
     omp_set_num_threads(2);
 
